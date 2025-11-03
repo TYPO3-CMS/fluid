@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Fluid\Tests\Functional\ViewHelpers\Be;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
+use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Page\PageRenderer;
@@ -68,7 +69,7 @@ final class PageRendererViewHelperTest extends FunctionalTestCase
         $view->render();
         $pageRenderer = $this->get(PageRenderer::class);
         // PageRenderer depends on request to determine FE vs. BE
-        self::assertStringContainsString($expected, $pageRenderer->renderResponse()->getBody()->__toString());
+        self::assertStringContainsString($expected, $pageRenderer->renderResponse($this->createRequest())->getBody()->__toString());
     }
 
     #[Test]
@@ -84,6 +85,15 @@ final class PageRendererViewHelperTest extends FunctionalTestCase
         $view->render();
         $pageRenderer = $this->get(PageRenderer::class);
         // PageRenderer depends on request to determine FE vs. BE
-        self::assertStringContainsString('"lang":{"login.header":"Login"}', $pageRenderer->renderResponse()->getBody()->__toString());
+        self::assertStringContainsString('"lang":{"login.header":"Login"}', $pageRenderer->renderResponse($this->createRequest())->getBody()->__toString());
+    }
+
+    private function createRequest(): ServerRequest
+    {
+        $normalizedParams = $this->createMock(NormalizedParams::class);
+        $normalizedParams->method('getSitePath')->willReturn('/');
+        return (new ServerRequest('https://www.example.com/'))
+            ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_BE)
+            ->withAttribute('normalizedParams', $normalizedParams);
     }
 }

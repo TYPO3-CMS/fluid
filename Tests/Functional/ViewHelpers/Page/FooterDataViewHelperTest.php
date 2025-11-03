@@ -18,6 +18,9 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\Tests\Functional\ViewHelpers\Page;
 
 use PHPUnit\Framework\Attributes\Test;
+use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
+use TYPO3\CMS\Core\Http\NormalizedParams;
+use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
@@ -43,10 +46,19 @@ final class FooterDataViewHelperTest extends FunctionalTestCase
         $view->render();
         $pageRenderer = $this->get(PageRenderer::class);
         $pageRenderer->addBodyContent(LF . '<body>');
-        $renderedHtml = $pageRenderer->renderResponse()->getBody()->__toString();
+        $renderedHtml = $pageRenderer->renderResponse($this->createRequest())->getBody()->__toString();
         $matches = [];
         preg_match('/<body>(.*?)<\/body>/s', $renderedHtml, $matches);
         $headerPart = $matches[1] ?? '';
         self::assertStringContainsString('var _paq = window._paq = window._paq || [];', $headerPart);
+    }
+
+    private function createRequest(): ServerRequest
+    {
+        $normalizedParams = $this->createMock(NormalizedParams::class);
+        $normalizedParams->method('getSitePath')->willReturn('/');
+        return (new ServerRequest('https://www.example.com/'))
+            ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_FE)
+            ->withAttribute('normalizedParams', $normalizedParams);
     }
 }
