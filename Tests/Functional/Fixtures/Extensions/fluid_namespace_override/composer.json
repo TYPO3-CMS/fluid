@@ -2,6 +2,7 @@
 	"name": "typo3tests/fixture-fluid-namespace-override",
 	"type": "typo3-cms-extension",
 	"description": "Attempts to override Fluid namespaces from thirdparty extension (fluid_test), like a sitepackage would do",
+	"version": "1.0.0",
 	"license": "GPL-2.0-or-later",
 	"require": {
 		"typo3/cms-core": "14.2.*@dev",
@@ -9,7 +10,10 @@
 	},
 	"extra": {
 		"typo3/cms": {
-			"extension-key": "fluid_namespace_override"
+			"extension-key": "fluid_namespace_override",
+			"Package": {
+				"providesPackages": []
+			}
 		}
 	}
 }

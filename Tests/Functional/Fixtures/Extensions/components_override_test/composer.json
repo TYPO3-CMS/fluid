@@ -2,6 +2,7 @@
 	"name": "typo3tests/fixture-components-override-test",
 	"type": "typo3-cms-extension",
 	"description": "Fluid components tests",
+	"version": "1.0.0",
 	"license": "GPL-2.0-or-later",
 	"require": {
 		"typo3/cms-core": "14.2.*@dev",
@@ -9,7 +10,10 @@
 	},
 	"extra": {
 		"typo3/cms": {
-			"extension-key": "components_override_test"
+			"extension-key": "components_override_test",
+			"Package": {
+				"providesPackages": []
+			}
 		}
 	}
 }
