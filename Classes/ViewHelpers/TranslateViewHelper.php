@@ -30,15 +30,28 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
 /**
  * ViewHelper to provide a translation for language keys ("locallang"/"LLL").
  * By default, the files are loaded from the folder `Resources/Private/Language/`.
- * Placeholder substitution (like PHP's `sprintf()`) can be evaluated when provided as
- * `arguments` attribute.
  *
+ * Supports two placeholder formats:
+ *
+ * 1. ICU MessageFormat with named arguments (for labels like "{count, plural, one {# file} other {# files}}"):
+ *    ```
+ *    <f:translate key="file_count" arguments="{count: fileCount}" />
+ *    ```
+ *
+ * 2. sprintf-style with positional arguments (for labels like "Downloaded %d times from %s"):
+ *    ```
+ *    <f:translate key="someKey" arguments="{0: 42, 1: 'server'}" />
+ *    ```
+ *
+ * Example usage:
  * ```
  *   <f:translate key="LLL:EXT:myext/Resources/Private/Language/locallang.xlf:key1" />
- *   <f:translate key="someKey" arguments="{0: 'dog', 'fox'}" />
+ *   <f:translate key="items_count" arguments="{count: items.count}" />
+ *   <f:translate key="someKey" arguments="{0: 'dog', 1: 'fox'}" />
  * ```
  *
  * @see https://php.net/sprintf
+ * @see https://unicode-org.github.io/icu/userguide/format_parse/messages/
  * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-translate
  */
 final class TranslateViewHelper extends AbstractViewHelper
@@ -112,7 +125,7 @@ final class TranslateViewHelper extends AbstractViewHelper
                 $extensionName = $request->getControllerExtensionName();
             } else {
                 if ($default) {
-                    return self::handleDefaultValue($default, $translateArguments);
+                    return self::handleDefaultValue($default, $translateArguments, $request);
                 }
             }
         }
@@ -138,7 +151,7 @@ final class TranslateViewHelper extends AbstractViewHelper
             $value = null;
         }
         if ($value === null) {
-            return self::handleDefaultValue($default, $translateArguments);
+            return self::handleDefaultValue($default, $translateArguments, $request);
         }
         return $value;
     }
@@ -146,10 +159,18 @@ final class TranslateViewHelper extends AbstractViewHelper
     /**
      * Ensure that a string is returned, if the underlying logic returns null, or cannot handle a translation
      */
-    private static function handleDefaultValue(string $default, ?array $translateArguments): string
+    private static function handleDefaultValue(string $default, ?array $translateArguments, ?ServerRequestInterface $request = null): string
     {
         if (!empty($translateArguments)) {
-            return vsprintf($default, $translateArguments);
+            // Check for ICU pattern markers
+            if (array_is_list($translateArguments)) {
+                return vsprintf($default, $translateArguments);
+            }
+            $locale = $request ? GeneralUtility::makeInstance(Locales::class)->createLocaleFromRequest($request)->posixFormatted() : 'en_US';
+            $formatted = \MessageFormatter::formatMessage($locale, $default, $translateArguments);
+            if ($formatted !== false) {
+                return $formatted;
+            }
         }
         return $default;
     }
