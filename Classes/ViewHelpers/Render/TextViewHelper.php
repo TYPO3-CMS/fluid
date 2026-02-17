@@ -22,6 +22,9 @@ use TYPO3\CMS\Core\Domain\RecordInterface;
 use TYPO3\CMS\Core\Schema\Field\InputFieldType;
 use TYPO3\CMS\Core\Schema\Field\TextFieldType;
 use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
+use TYPO3\CMS\Extbase\DomainObject\DomainObjectInterface;
+use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMap;
+use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapFactory;
 use TYPO3\CMS\Fluid\ViewHelpers\Format\HtmlViewHelper;
 use TYPO3\CMS\Frontend\Page\PageInformation;
 use TYPO3Fluid\Fluid\Core\Parser\UnsafeHTML;
@@ -32,6 +35,8 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  * ViewHelper to render content based on records and fields from a TCA schema.
  * Handles the processing of both simple and rich text fields.
  *
+ * Can also handle extbase models, you still need to provide the field name, not the property name.
+ *
  * ````html
  *   <f:render.text record="{page}" field="bodytext" />
  *   {record -> f:render.text(field: 'title')}
@@ -40,19 +45,28 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  */
 final class TextViewHelper extends AbstractViewHelper
 {
+    /**
+     * We need to disable escaping for the children, otherwise extbase models are given as string to the viewHelper.
+     * AbstractDomainObject has a __toString method, fluid executes it before giving use the object.
+     * This is a deeper issue in Fluid that we cannot easily resolve.
+     * This ViewHelper escapes the output itself, so we can safely disable escaping for the children and output.
+     */
+    protected $escapeChildren = false;
+
     protected $escapeOutput = false;
 
     public function __construct(
         private readonly TcaSchemaFactory $tcaSchema,
         private readonly RecordFactory $recordFactory,
+        private readonly DataMapFactory $dataMapFactory,
     ) {}
 
     public function initializeArguments(): void
     {
         parent::initializeArguments();
 
-        $this->registerArgument('record', PageInformation::class . '|' . RecordInterface::class, 'A Record API Object');
-        $this->registerArgument('field', 'string', 'The field that should be rendered.', true);
+        $this->registerArgument('record', PageInformation::class . '|' . RecordInterface::class . '|' . DomainObjectInterface::class, 'A Record API Object or extbase model');
+        $this->registerArgument('field', 'string', 'The database field that should be rendered (even if extbase model is used).', true);
     }
 
     public function getContentArgumentName(): string
@@ -73,25 +87,27 @@ final class TextViewHelper extends AbstractViewHelper
 
     public function render(): UnsafeHTML
     {
-        $record = $this->renderChildren();
+        $input = $this->renderChildren();
         $field = $this->arguments['field'];
 
-        if ($record instanceof PageInformation) {
-            $record = $this->recordFactory->createResolvedRecordFromDatabaseRow('pages', $record->getPageRecord());
+        if ($input instanceof PageInformation) {
+            $input = $this->recordFactory->createResolvedRecordFromDatabaseRow('pages', $input->getPageRecord());
         }
 
-        if (!$record instanceof RecordInterface) {
-            throw new \InvalidArgumentException('The record argument must be an instance of ' . PageInformation::class . ' or ' . RecordInterface::class . '. Given: ' . get_debug_type($record), 1770539910);
+        if (!$input instanceof RecordInterface && !$input instanceof DomainObjectInterface) {
+            throw new \InvalidArgumentException(
+                'The record argument must be an instance of ' . PageInformation::class . ' or ' . RecordInterface::class . ' or ' . DomainObjectInterface::class . ' . Given: ' . get_debug_type($input),
+                1770539910,
+            );
         }
 
-        $value = $record->get($field) ?? '';
+        ['table' => $table, 'fullType' => $fullType, 'value' => $value] = $this->extractInformation($input, $field);
 
         if (!is_string($value)) {
-            $table = $record->getMainType();
             throw new \InvalidArgumentException('The value of the field "' . $table . '.' . $field . '" must be a string. Given: ' . get_debug_type($value), 1770321858);
         }
 
-        $fieldSchema = $this->tcaSchema->get($record->getFullType())->getField($field);
+        $fieldSchema = $this->tcaSchema->get($fullType)->getField($field);
         if ($fieldSchema instanceof InputFieldType) {
             return new UnsafeHTMLString(htmlspecialchars($value));
         }
@@ -111,7 +127,60 @@ final class TextViewHelper extends AbstractViewHelper
             );
         }
 
-        $table = $record->getMainType();
         throw new \InvalidArgumentException('The field "' . $table . '.' . $field . '" is not supported. Given: ' . get_debug_type($fieldSchema), 1770618219);
+    }
+
+    /**
+     * @return array{table: string, fullType: string, value: mixed}
+     */
+    private function extractInformation(RecordInterface|DomainObjectInterface $input, string $field): array
+    {
+        if ($input instanceof RecordInterface) {
+            return [
+                'table' => $input->getMainType(),
+                'fullType' => $input->getFullType(),
+                'value' => $input->get($field) ?? '',
+            ];
+        }
+        $dataMap = $this->dataMapFactory->buildDataMap($input::class);
+
+        $recordType = $this->getRecordType($input, $dataMap);
+
+        return [
+            'table' => $dataMap->getTableName(),
+            'fullType' => $dataMap->getTableName() . ($recordType ? '.' . $recordType : ''),
+            'value' => $this->getResultingValue($input, $dataMap, $field),
+        ];
+    }
+
+    private function getRecordType(DomainObjectInterface $input, DataMap $dataMap): ?string
+    {
+        $recordType = $dataMap->getRecordType();
+        if ($recordType !== null) {
+            return $recordType;
+        }
+
+        $recordTypeFieldName = $dataMap->getRecordTypeColumnName();
+        if ($recordTypeFieldName === null) {
+            return null;
+        }
+
+        foreach ($input->_getProperties() as $propertyName => $value) {
+            if ($dataMap->getColumnMap($propertyName)?->columnName === $recordTypeFieldName) {
+                return $value;
+            }
+        }
+        throw new \InvalidArgumentException('The record type field "' . $recordTypeFieldName . '" does not exist in the given model ' . $input::class . '.', 1771507212);
+    }
+
+    private function getResultingValue(DomainObjectInterface $input, DataMap $dataMap, string $field): mixed
+    {
+        foreach ($input->_getProperties() as $propertyName => $value) {
+            if ($dataMap->getColumnMap($propertyName)?->columnName === $field) {
+                return $value ?? '';
+            }
+        }
+
+        throw new \InvalidArgumentException('Could not find the field "' . $field . '" in the given model ' . $input::class . '.', 1771507213);
     }
 }
