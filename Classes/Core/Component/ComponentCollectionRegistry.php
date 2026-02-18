@@ -18,14 +18,12 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\Core\Component;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 
 /**
  * @internal May change / vanish any time
  */
-#[Autoconfigure(public: true)]
 final readonly class ComponentCollectionRegistry
 {
     /**

@@ -20,9 +20,7 @@ namespace TYPO3\CMS\Fluid\Core\ViewHelper;
 use Psr\Container\ContainerInterface;
 use TYPO3\CMS\Core\DependencyInjection\FailsafeContainer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperCollection;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperInterface;
-use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperResolverDelegateInterface;
 
 /**
  * Class whose purpose is dedicated to resolving classes which
@@ -59,10 +57,11 @@ class ViewHelperResolver extends \TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperRes
      *
      * @internal constructor, use `ViewHelperResolverFactory->create()` instead
      */
-    public function __construct(ContainerInterface $container, array $namespaces, protected iterable $componentCollections = [])
+    public function __construct(ContainerInterface $container, array $namespaces, array $resolverDelegates = [])
     {
         $this->container = $container;
         $this->namespaces = $namespaces;
+        $this->resolverDelegates = $resolverDelegates;
     }
 
     /**
@@ -87,36 +86,5 @@ class ViewHelperResolver extends \TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperRes
             $viewHelperInstance = new $viewHelperClassName();
         }
         return $viewHelperInstance;
-    }
-
-    /**
-     * Creates a ViewHelperResolver delegate object based on a ViewHelper
-     * namespace string. The logic here is: If a ViewHelper namespace is
-     * defined with an existing class name, that class will be responsible
-     * for resolving the ViewHelpers in that namespace (= it is a
-     * ViewHelperResolver  delegate). If no such class exists, the default
-     * ViewHelper resolving is used (implemented in ViewHelperCollection).
-     * The default implementation by Fluid is extended to support dependency
-     * injection in ViewHelperResolver delegates.
-     */
-    public function createResolverDelegateInstanceFromClassName(string $delegateClassName): ViewHelperResolverDelegateInterface
-    {
-        if ($this->container instanceof FailsafeContainer && class_exists($delegateClassName)) {
-            // The install tool creates resolver instances using makeInstance
-            // to not rely on symfony DI. Currently the install tool doesn't
-            // use any custom resolvers, however this might change in the future.
-            return GeneralUtility::makeInstance($delegateClassName);
-        }
-        if (isset($this->componentCollections[$delegateClassName])) {
-            return $this->componentCollections[$delegateClassName];
-        }
-        if ($this->container->has($delegateClassName)) {
-            return $this->container->get($delegateClassName);
-        }
-        if (class_exists($delegateClassName)) {
-            return new $delegateClassName();
-        }
-        // Fall back to default ViewHelper resolving logic
-        return new ViewHelperCollection($delegateClassName);
     }
 }
