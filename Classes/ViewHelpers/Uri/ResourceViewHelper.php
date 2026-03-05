@@ -71,8 +71,8 @@ final class ResourceViewHelper extends AbstractViewHelper
     {
         $resource = $this->renderChildren();
         if (!$resource instanceof PublicResourceInterface) {
-            $uri = $this->resolveSystemUri();
-            $resource = $this->systemResourceFactory->createPublicResource($uri);
+            $resourceIdentifier = $this->resolveResourceIdentifier();
+            $resource = $this->systemResourceFactory->createPublicResource($resourceIdentifier);
         }
         $request = $this->resolveRequest();
         if ($this->arguments['absolute'] && $request === null) {
@@ -102,7 +102,7 @@ final class ResourceViewHelper extends AbstractViewHelper
     /**
      * Resolves the extension path, either directly when possible, or from extension name and request
      */
-    private function resolveSystemUri(): string
+    private function resolveResourceIdentifier(): string
     {
         if (!isset($this->arguments['path'])) {
             throw new MissingArgumentException('ViewHelper f:uri.resource needs either "resource", or "path" argument to be set', 1759231234);

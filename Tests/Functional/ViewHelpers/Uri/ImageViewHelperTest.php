@@ -65,9 +65,9 @@ final class ImageViewHelperTest extends FunctionalTestCase
                 'Unable to render image URI: Supplied something could not be resolved to a File or FileReference.',
             ],
             [
-                '<f:uri.image src="EXT:fluid/Tests/Functional/Fixtures/ViewHelpers/" />',
+                '<f:uri.image src="EXT:fluid/Resources/Private/Language/" />',
                 1509741907,
-                'Unable to render image URI: Tried to access a private resource file "EXT:fluid/Tests/Functional/Fixtures/ViewHelpers/" from fallback compatibility storage. This storage only handles public files.',
+                'Unable to render image URI: Tried to access a private resource file "EXT:fluid/Resources/Private/Language/" from fallback compatibility storage. This storage only handles public files.',
             ],
             [
                 '<f:uri.image src="fileadmin/image.jpg" />',
@@ -114,9 +114,9 @@ final class ImageViewHelperTest extends FunctionalTestCase
                 'Unable to render image URI in "tt_content:123": Supplied something could not be resolved to a File or FileReference.',
             ],
             [
-                '<f:uri.image src="EXT:fluid/Tests/Functional/Fixtures/ViewHelpers/" />',
+                '<f:uri.image src="EXT:fluid/Resources/Private/Language/" />',
                 1509741907,
-                'Unable to render image URI in "tt_content:123": Tried to access a private resource file "EXT:fluid/Tests/Functional/Fixtures/ViewHelpers/" from fallback compatibility storage. This storage only handles public files.',
+                'Unable to render image URI in "tt_content:123": Tried to access a private resource file "EXT:fluid/Resources/Private/Language/" from fallback compatibility storage. This storage only handles public files.',
             ],
             [
                 '<f:uri.image src="fileadmin/image.jpg" />',
