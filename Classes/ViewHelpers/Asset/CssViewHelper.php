@@ -75,7 +75,8 @@ final class CssViewHelper extends AbstractTagBasedViewHelper
     {
         parent::initializeArguments();
         $this->registerArgument('disabled', 'bool', 'Define whether or not the described stylesheet should be loaded and applied to the document.');
-        $this->registerArgument('useNonce', 'bool', 'Whether to use the global nonce value', false, false);
+        $this->registerArgument('csp', 'bool', 'Whether to collect a CSP hash value for this asset (default: true for external files, false for inline)', false, null);
+        $this->registerArgument('useNonce', 'bool', 'Whether to use the global nonce value (deprecated, use csp instead)', false, null);
         $this->registerArgument('identifier', 'string', 'Use this identifier within templates to only inject your CSS once, even though it is added multiple times.', true);
         $this->registerArgument('priority', 'boolean', 'Define whether the CSS should be included before other CSS. CSS will always be output in the <head> tag.', false, false);
         $this->registerArgument('inline', 'bool', 'Define whether or not the referenced file should be loaded as inline styles (Only to be used if \'href\' is set).', false, false);
@@ -93,9 +94,11 @@ final class CssViewHelper extends AbstractTagBasedViewHelper
 
         $file = $attributes['href'] ?? null;
         unset($attributes['href']);
+        $isExternalFile = $file !== null && !($this->arguments['inline'] ?? false);
+        $useCsp = $this->resolveCspOption($isExternalFile);
         $options = [
             'priority' => $this->arguments['priority'],
-            'useNonce' => $this->arguments['useNonce'],
+            'csp' => $useCsp,
         ];
         if ($file !== null) {
             if ($this->arguments['inline'] ?? false) {
@@ -113,5 +116,24 @@ final class CssViewHelper extends AbstractTagBasedViewHelper
             }
         }
         return '';
+    }
+
+    private function resolveCspOption(bool $defaultForStatic): bool
+    {
+        $csp = $this->arguments['csp'];
+        $useNonce = $this->arguments['useNonce'];
+        // Deprecated useNonce argument maps to csp
+        if ($useNonce !== null) {
+            trigger_error(
+                'The "useNonce" argument of f:asset.css is deprecated. Use "csp" instead.',
+                E_USER_DEPRECATED
+            );
+            return (bool)$useNonce;
+        }
+        if ($csp !== null) {
+            return (bool)$csp;
+        }
+        // Default: true for external files (allows hash collection), false for inline
+        return $defaultForStatic;
     }
 }

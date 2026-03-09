@@ -77,7 +77,8 @@ final class ScriptViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('async', 'bool', 'Define that the script will be fetched in parallel to parsing and evaluation.');
         $this->registerArgument('defer', 'bool', 'Define that the script is meant to be executed after the document has been parsed.');
         $this->registerArgument('nomodule', 'bool', 'Define that the script should not be executed in browsers that support ES2015 modules.');
-        $this->registerArgument('useNonce', 'bool', 'Whether to use the global nonce value', false, false);
+        $this->registerArgument('csp', 'bool', 'Whether to collect a CSP hash value for this asset (default: true for external files, false for inline)', false, null);
+        $this->registerArgument('useNonce', 'bool', 'Whether to use the global nonce value (deprecated, use csp instead)', false, null);
         $this->registerArgument('identifier', 'string', 'Use this identifier within templates to only inject your JS once, even though it is added multiple times.', true);
         $this->registerArgument('priority', 'boolean', 'Define whether the JavaScript should be put in the <head> tag above-the-fold or somewhere in the body part.', false, false);
         $this->registerArgument('inline', 'bool', 'Define whether or not the referenced file should be loaded as inline script (Only to be used if \'src\' is set).', false, false);
@@ -97,9 +98,11 @@ final class ScriptViewHelper extends AbstractTagBasedViewHelper
 
         $src = $attributes['src'] ?? null;
         unset($attributes['src']);
+        $isExternalFile = $src !== null && !($this->arguments['inline'] ?? false);
+        $useCsp = $this->resolveCspOption($isExternalFile);
         $options = [
             'priority' => $this->arguments['priority'],
-            'useNonce' => $this->arguments['useNonce'],
+            'csp' => $useCsp,
         ];
         if ($src !== null) {
             if ($this->arguments['inline'] ?? false) {
@@ -117,5 +120,24 @@ final class ScriptViewHelper extends AbstractTagBasedViewHelper
             }
         }
         return '';
+    }
+
+    private function resolveCspOption(bool $defaultForStatic): bool
+    {
+        $csp = $this->arguments['csp'];
+        $useNonce = $this->arguments['useNonce'];
+        // Deprecated useNonce argument maps to csp
+        if ($useNonce !== null) {
+            trigger_error(
+                'The "useNonce" argument of f:asset.script is deprecated. Use "csp" instead.',
+                E_USER_DEPRECATED
+            );
+            return (bool)$useNonce;
+        }
+        if ($csp !== null) {
+            return (bool)$csp;
+        }
+        // Default: true for external files (allows hash collection), false for inline
+        return $defaultForStatic;
     }
 }
