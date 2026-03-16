@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\Tests\Functional\ViewHelpers\Render;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\DependencyInjection\Container;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
@@ -42,7 +43,8 @@ final class ContentAreaViewHelperTest extends FunctionalTestCase
     private array $dispatchedEvents = [];
 
     #[Test]
-    public function renderContentAreaEventIsDispatched(): void
+    #[DataProvider('provideRenderScenarios')]
+    public function renderContentAreaEventIsDispatched(string $template, string $expected): void
     {
         $this->registerEventListeners();
 
@@ -50,7 +52,7 @@ final class ContentAreaViewHelperTest extends FunctionalTestCase
 
         $request = $this->createRequest();
         $context = $this->get(RenderingContextFactory::class)->create([], $request);
-        $context->getTemplatePaths()->setTemplateSource('<f:render.contentArea contentArea="{contentArea}" />');
+        $context->getTemplatePaths()->setTemplateSource($template);
         $this->get(ConfigurationManagerInterface::class)->setRequest($request);
 
         $view = new TemplateView($context);
@@ -59,8 +61,7 @@ final class ContentAreaViewHelperTest extends FunctionalTestCase
         $result = $view->render();
 
         // Both record contents should be rendered
-        self::assertStringContainsString('First content', $result);
-        self::assertStringContainsString('Second content', $result);
+        self::assertEquals($expected, $result);
 
         // RenderRecordEvent should be dispatched once per record, RenderContentAreaEvent once
         self::assertCount(3, $this->dispatchedEvents);
@@ -69,32 +70,36 @@ final class ContentAreaViewHelperTest extends FunctionalTestCase
         self::assertInstanceOf(ModifyRenderedContentAreaEvent::class, $this->dispatchedEvents[2]);
     }
 
-    #[Test]
-    public function renderContentAreaInline(): void
+    public static function provideRenderScenarios(): \Generator
     {
-        $this->registerEventListeners();
+        yield 'standard' => [
+            'template' => '<f:render.contentArea contentArea="{contentArea}" />',
+            'expected' => 'First contentSecond content',
+        ];
+        yield 'inline' => [
+            'template' => '{contentArea -> f:render.contentArea()}',
+            'expected' => 'First contentSecond content',
+        ];
+        yield 'aboveBelow' => [
+            'template' => '
+<f:render.contentArea contentArea="{contentArea}" recordAs="record">
+    Above {record.fullType}
+    <f:render.record record="{record}" />
+    Below {record.fullType}
+</f:render.contentArea>
+',
+            'expected' => '
 
-        $contentArea = $this->createContentArea();
+    Above tt_content.text
+    First content
+    Below tt_content.text
 
-        $request = $this->createRequest();
-        $context = $this->get(RenderingContextFactory::class)->create([], $request);
-        $context->getTemplatePaths()->setTemplateSource('{contentArea -> f:render.contentArea()}');
-        $this->get(ConfigurationManagerInterface::class)->setRequest($request);
+    Above tt_content.header
+    Second content
+    Below tt_content.header
 
-        $view = new TemplateView($context);
-        $view->assign('contentArea', $contentArea);
-
-        $result = $view->render();
-
-        // Both record contents should be rendered
-        self::assertStringContainsString('First content', $result);
-        self::assertStringContainsString('Second content', $result);
-
-        // RenderRecordEvent should be dispatched once per record, RenderContentAreaEvent once
-        self::assertCount(3, $this->dispatchedEvents);
-        self::assertInstanceOf(ModifyRenderedRecordEvent::class, $this->dispatchedEvents[0]);
-        self::assertInstanceOf(ModifyRenderedRecordEvent::class, $this->dispatchedEvents[1]);
-        self::assertInstanceOf(ModifyRenderedContentAreaEvent::class, $this->dispatchedEvents[2]);
+',
+        ];
     }
 
     #[Test]
@@ -192,6 +197,10 @@ final class ContentAreaViewHelperTest extends FunctionalTestCase
                 'default.' => [
                     'field' => 'bodytext',
                 ],
+                'header' => 'TEXT',
+                'header.' => [
+                    'field' => 'header',
+                ],
             ],
         ];
 
@@ -218,18 +227,18 @@ final class ContentAreaViewHelperTest extends FunctionalTestCase
                 'bodytext' => 'First content',
             ],
             computedProperties: new ComputedProperties(),
-            fullType: 'tt_content.text'
+            fullType: 'tt_content.text',
         );
 
         $record2 = new RawRecord(
             uid: 2,
             pid: 1,
             properties: [
-                'CType' => 'text',
-                'bodytext' => 'Second content',
+                'CType' => 'header',
+                'header' => 'Second content',
             ],
             computedProperties: new ComputedProperties(),
-            fullType: 'tt_content.text'
+            fullType: 'tt_content.header',
         );
 
         $contentArea = new ContentArea(

@@ -21,12 +21,14 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Page\ContentArea;
 use TYPO3\CMS\Fluid\Event\ModifyRenderedContentAreaEvent;
+use TYPO3Fluid\Fluid\Core\Variables\ScopedVariableProvider;
+use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\InvalidArgumentValueException;
 
 /**
  * ViewHelper to render a content area as provided by the page-content processor.
- * The most common use case is to render all content elements within column from a
+ * The most common use case is to render all content elements within a column from a
  * backend layout.
  *
  *  ```typoscript
@@ -43,6 +45,17 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\InvalidArgumentValueException;
  *
  *  ```html
  *    {content.main -> f:render.contentArea()}
+ *  ```
+ *
+ * or with markup before and after rendered record by using the "recordAs" argument
+ * in combination with the `<f:render.record> ViewHelper <https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-render-record>`_:
+ *
+ *  ```html
+ *    <f:render.contentArea contentArea="{content.main}" recordAs="record">
+ *        before {record.fullType}
+ *        <f:render.record record="{record}" />
+ *        after {record.fullType}
+ *    </f:render.contentArea>
  *  ```
  *
  * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-render-contentarea
@@ -63,29 +76,37 @@ final class ContentAreaViewHelper extends AbstractViewHelper
         parent::initializeArguments();
 
         $this->registerArgument('contentArea', ContentArea::class, 'A content area from the page-content processor');
-    }
-
-    public function getContentArgumentName(): string
-    {
-        return 'contentArea';
+        $this->registerArgument('recordAs', 'string', 'Name of the variable to store the current record in, if you want to use it in the before/after content.');
     }
 
     public function render(): string
     {
-        $contentArea = $this->renderChildren();
+        // use argument and fallback to renderChildren for inline records.
+        $contentArea = $this->arguments['contentArea'] ?? $this->renderChildren();
         if (!$contentArea instanceof ContentArea) {
             throw new InvalidArgumentValueException('The "contentArea" argument must be an instance of ' . ContentArea::class, 1770212183);
         }
 
         $result = '';
-        foreach ($contentArea->getRecords() as $record) {
-            $result .= $this->renderingContext->getViewHelperInvoker()->invoke(
-                RecordViewHelper::class,
-                [
-                    'record' => $record,
-                ],
-                $this->renderingContext,
-            );
+        if ($this->arguments['recordAs'] !== null) {
+            $globalVariableProvider = $this->renderingContext->getVariableProvider();
+            foreach ($contentArea->getRecords() as $record) {
+                $localVariableProvider = new StandardVariableProvider([$this->arguments['recordAs'] => $record]);
+                $scopedVariableProvider = new ScopedVariableProvider($globalVariableProvider, $localVariableProvider);
+                $this->renderingContext->setVariableProvider($scopedVariableProvider);
+                $result .= $this->renderChildren();
+            }
+            $this->renderingContext->setVariableProvider($globalVariableProvider);
+        } else {
+            foreach ($contentArea->getRecords() as $record) {
+                $result .= $this->renderingContext->getViewHelperInvoker()->invoke(
+                    RecordViewHelper::class,
+                    [
+                        'record' => $record,
+                    ],
+                    $this->renderingContext,
+                );
+            }
         }
 
         $event = $this->eventDispatcher->dispatch(
