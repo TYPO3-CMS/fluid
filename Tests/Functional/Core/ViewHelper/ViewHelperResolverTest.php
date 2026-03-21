@@ -29,7 +29,7 @@ final class ViewHelperResolverTest extends FunctionalTestCase
 {
     protected array $testExtensionsToLoad = [
         'typo3/sysext/fluid/Tests/Functional/Fixtures/Extensions/fluid_test',
-        'typo3/sysext/fluid/Tests/Functional/Fixtures/Extensions/fluid_namespace',
+        'typo3/sysext/fluid/Tests/Functional/Fixtures/Extensions/fluid_namespace_override',
         'typo3/sysext/fluid/Tests/Functional/Fixtures/Extensions/resolverdelegate_test',
     ];
 
@@ -59,9 +59,9 @@ final class ViewHelperResolverTest extends FunctionalTestCase
     {
         return [
             ['instance_legacy', ['TYPO3Tests\\FluidTest\\NamespacesPhp', 'TYPO3Tests\\FluidTest\\Instance']],
-            ['thirdparty_legacy', ['TYPO3Tests\\FluidTest\\NamespacesPhp', 'TYPO3Tests\\FluidNamespace\\ExtLocalconf', 'TYPO3Tests\\FluidTest\\ExtLocalconf']],
+            ['thirdparty_legacy', ['TYPO3Tests\\FluidNamespaceOverride\\NamespacesPhp', 'TYPO3Tests\\FluidTest\\ExtLocalconf', 'TYPO3Tests\\FluidNamespaceOverride\\ExtLocalconf']],
             ['f', ['TYPO3Fluid\\Fluid\\ViewHelpers', 'TYPO3\\CMS\\Fluid\\ViewHelpers', 'TYPO3Tests\\FluidTest\\NamespacesPhp']],
-            ['thirdparty', ['TYPO3Tests\\FluidNamespace\\NamespacesPhp', 'TYPO3Tests\\FluidTest\\NamespacesPhp']],
+            ['thirdparty', ['TYPO3Tests\\FluidTest\\NamespacesPhp', 'TYPO3Tests\\FluidNamespaceOverride\\NamespacesPhp']],
             ['event', ['TYPO3Tests\\FluidTest\\EventBefore', 'TYPO3Tests\\FluidTest\\NamespacesPhp', 'TYPO3Tests\\FluidTest\\Instance', 'TYPO3Tests\\FluidTest\\EventAfter']],
         ];
     }

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $EM_CONF[$_EXTKEY] = [
-    'title' => 'Fluid components tests',
+    'title' => 'Fluid namespace override',
     'description' => '',
     'category' => 'Example Extensions',
     'state' => 'stable',
@@ -11,6 +11,7 @@ $EM_CONF[$_EXTKEY] = [
     'constraints' => [
         'depends' => [
             'typo3' => '14.2.0',
+            'fluid_test' => '*',
         ],
         'conflicts' => [],
         'suggests' => [],
