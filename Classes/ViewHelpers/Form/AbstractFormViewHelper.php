@@ -17,7 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\ViewHelpers\Form;
 
-use TYPO3\CMS\Core\Page\PageRenderer;
+use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Core\Type\DocType;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
 use TYPO3\CMS\Extbase\Persistence\Generic\LazyLoadingProxy;
 use TYPO3\CMS\Extbase\Persistence\PersistenceManagerInterface;
@@ -35,16 +36,10 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 abstract class AbstractFormViewHelper extends AbstractTagBasedViewHelper
 {
     protected PersistenceManagerInterface $persistenceManager;
-    protected PageRenderer $pageRenderer;
 
     public function injectPersistenceManager(PersistenceManagerInterface $persistenceManager): void
     {
         $this->persistenceManager = $persistenceManager;
-    }
-
-    public function injectPageRenderer(PageRenderer $pageRenderer): void
-    {
-        $this->pageRenderer = $pageRenderer;
     }
 
     /**
@@ -119,6 +114,6 @@ abstract class AbstractFormViewHelper extends AbstractTagBasedViewHelper
 
     protected function shouldUseXHtmlSlash(): bool
     {
-        return $this->pageRenderer->getDocType()->isXmlCompliant();
+        return DocType::createFromRequest($this->renderingContext->getAttribute(ServerRequestInterface::class))->isXmlCompliant();
     }
 }
