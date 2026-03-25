@@ -20,7 +20,6 @@ namespace TYPO3\CMS\Fluid\ViewHelpers\Uri;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface as ExtbaseRequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder as ExtbaseUriBuilder;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
@@ -164,7 +163,7 @@ final class ActionViewHelper extends AbstractViewHelper
         if ($linkAccessRestrictedPages) {
             $typolinkConfiguration['linkAccessRestrictedPages'] = 1;
         }
-        $typolinkConfiguration['additionalParams'] = HttpUtility::buildQueryString($additionalParams, '&');
+        $typolinkConfiguration['queryParameters'] = $additionalParams;
         if ($absolute) {
             $typolinkConfiguration['forceAbsoluteUrl'] = true;
         }
